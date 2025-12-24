@@ -357,6 +357,337 @@ def prompt_router(input):
 
 ---
 
+### Query Structuring
+
+**File:** `Query_structuring.ipynb`
+
+An advanced technique that uses **structured LLM output** to convert natural language questions into structured database queries. This notebook demonstrates how to extract search parameters, filters, and constraints from user queries using Pydantic models and structured LLM outputs.
+
+#### Overview
+
+Query structuring is essential for building search systems that need to handle complex queries with multiple filters and parameters. Instead of treating queries as plain text, this approach:
+
+1. **Converts natural language** into structured query objects
+2. **Extracts search parameters** (content search, title search)
+3. **Identifies filters** (dates, view counts, video lengths, etc.)
+4. **Generates optimized queries** for database/vector store retrieval
+
+#### How It Works
+
+The query structuring approach uses:
+
+- **Pydantic Models**: Define the structure of search queries with typed fields
+- **Structured LLM Output**: Uses `with_structured_output()` to convert questions into structured objects
+- **Field Descriptions**: Each field has detailed descriptions to guide the LLM
+- **Optional Filters**: Only includes filters when explicitly mentioned in the query
+
+#### Workflow
+
+```
+Natural Language Question
+    ↓
+Structured LLM with Pydantic Model
+    ↓
+Extract Query Parameters:
+  - Content search terms
+  - Title search terms
+  - Date filters
+  - View count filters
+  - Length filters
+    ↓
+Structured Query Object
+    ↓
+Execute Search with Parameters
+```
+
+#### Key Components
+
+1. **Pydantic Model**: Defines the structure of search queries with typed fields and descriptions
+2. **Structured LLM**: Converts natural language to structured objects using `with_structured_output()`
+3. **Field Extraction**: Identifies relevant search parameters and filters from questions
+4. **Query Building**: Constructs optimized queries from extracted parameters
+
+#### Code Structure
+
+**Pydantic Model Definition:**
+```python
+from pydantic import BaseModel, Field
+import datetime
+
+class TutorialSearch(BaseModel):
+    content_search: str = Field(..., description="Similarity search query")
+    title_search: str = Field(..., description="Title search query")
+    min_view_count: Optional[int] = Field(None, description="Minimum views")
+    earliest_publish_date: Optional[datetime.date] = Field(None, description="Earliest date")
+    # ... more filter fields
+```
+
+**Query Analyzer:**
+```python
+structured_llm = llm.with_structured_output(TutorialSearch)
+query_analyzer = prompt | structured_llm
+
+# Convert question to structured query
+query = query_analyzer.invoke({"question": "rag from scratch"})
+```
+
+#### Benefits
+
+- **Structured Extraction**: Converts natural language into typed, structured queries
+- **Multi-parameter Queries**: Handles complex queries with multiple filters
+- **Type Safety**: Pydantic models ensure type correctness
+- **Explicit Filters**: Only applies filters when explicitly mentioned
+- **Flexible**: Easy to extend with new search parameters or filters
+- **Optimized Queries**: Produces queries optimized for your search backend
+
+#### Use Cases
+
+- **Video Search Systems**: Structure queries for video databases (content, titles, dates, views)
+- **E-commerce Search**: Extract product attributes, price ranges, categories
+- **Document Databases**: Structure queries with metadata filters (authors, dates, tags)
+- **Multi-modal Search**: Combine text search with structured filters
+- **API Query Building**: Convert natural language to API query parameters
+
+#### Usage
+
+1. Set up your `.env` file with API keys:
+   ```
+   OPENAI_API_KEY=your_key_here
+   LANGCHAIN_API_KEY=your_key_here (optional, for tracing)
+   ```
+
+2. Define your Pydantic model with search parameters and filters:
+   ```python
+   class YourSearchModel(BaseModel):
+       # Define your search fields
+       content_search: str = Field(...)
+       # Add filter fields as needed
+   ```
+
+3. Create the structured LLM and query analyzer:
+   ```python
+   structured_llm = llm.with_structured_output(YourSearchModel)
+   query_analyzer = prompt | structured_llm
+   ```
+
+4. Convert questions to structured queries:
+   ```python
+   query = query_analyzer.invoke({"question": "videos on chat langchain published in 2023"})
+   # Use query.content_search, query.earliest_publish_date, etc.
+   ```
+
+#### Example
+
+**Natural Language Question:** "videos on chat langchain published in 2023"
+
+**Structured Query Output:**
+```
+content_search: chat langchain
+title_search: 2023
+earliest_publish_date: 2023-01-01
+latest_publish_date: 2024-01-01
+```
+
+**Another Example:** "rag from scratch with at least 1000 views"
+```
+content_search: rag from scratch
+title_search: rag
+min_view_count: 1000
+```
+
+#### Requirements
+
+- OpenAI API key
+- Python packages (see main `requirements.txt`)
+- `pydantic` for structured models
+
+#### Key Dependencies
+
+- `langchain`
+- `langchain-openai`
+- `langchain-community`
+- `pydantic`
+- `youtube-transcript-api` (for YouTube examples)
+
+---
+
+### RAG with Multi-Representation Indexing
+
+**File:** `Rag_Multi_Representation_Indexing.ipynb`
+
+An advanced RAG technique that uses **multi-representation indexing** to improve retrieval by indexing document summaries (child documents) but retrieving full documents (parent documents). This approach reduces storage costs while maintaining retrieval quality by searching over condensed representations.
+
+#### Overview
+
+Traditional RAG systems index and search the full document chunks, which can be storage-intensive and sometimes inefficient. Multi-representation indexing addresses this by:
+
+1. **Creating summaries** of full documents using LLMs
+2. **Indexing summaries** in the vector store (child documents)
+3. **Storing full documents** in a separate docstore (parent documents)
+4. **Searching summaries** for retrieval but **returning full documents** for generation
+
+This approach is particularly useful when you have long documents and want to reduce storage while maintaining retrieval accuracy.
+
+#### How It Works
+
+The multi-representation indexing approach:
+
+- **Summarization Phase**: Each document is summarized using an LLM, creating condensed representations
+- **Dual Storage**: 
+  - Summaries are embedded and stored in a vector database for similarity search
+  - Full documents are stored in a simple key-value docstore
+- **Linking**: Each summary has metadata linking it to its parent document via a unique ID
+- **Retrieval**: When a query comes in:
+  1. Search summaries in the vector store
+  2. Extract document IDs from matching summaries
+  3. Retrieve full documents from the docstore
+  4. Return full documents for answer generation
+
+#### Workflow
+
+```
+Original Documents
+    ↓
+Generate Summaries (LLM)
+    ↓
+    ├─→ Summaries → Embed → Vector Store (Chroma)
+    └─→ Full Docs → Store in Docstore (with IDs)
+    ↓
+Query
+    ↓
+Search Summaries in Vector Store
+    ↓
+Extract Document IDs from Matching Summaries
+    ↓
+Retrieve Full Documents from Docstore
+    ↓
+Use Full Documents for Answer Generation
+```
+
+#### Key Components
+
+1. **Summarization Chain**: Uses LLM to create concise summaries of documents
+2. **Vector Store**: Stores embedded summaries for similarity search (ChromaDB)
+3. **Docstore**: Simple key-value storage for full documents (in-memory dictionary)
+4. **MultiVectorRetriever**: Custom retriever that searches summaries but returns full documents
+5. **Document Linking**: Metadata-based linking between summaries and parent documents
+
+#### Code Structure
+
+**Document Summarization:**
+```python
+chain = (
+    {"doc": lambda x: x.page_content}
+    | ChatPromptTemplate.from_template("Summarize the following document:\n\n{doc}")
+    | ChatOpenAI(model="gpt-3.5-turbo")
+    | StrOutputParser()
+)
+summaries = chain.batch(docs, {"max_concurrency": 5})
+```
+
+**Multi-Vector Retriever:**
+```python
+class MultiVectorRetriever(BaseRetriever):
+    vectorstore: Chroma  # Stores summaries
+    docstore: dict       # Stores full documents
+    
+    def _get_relevant_documents(self, query: str, ...):
+        # Search summaries
+        summary_docs = self.vectorstore.similarity_search(query)
+        # Get doc IDs from summaries
+        doc_ids = [doc.metadata["doc_id"] for doc in summary_docs]
+        # Return full documents
+        return [self.docstore[doc_id] for doc_id in doc_ids]
+```
+
+**Indexing:**
+```python
+# Generate unique IDs for documents
+doc_ids = [str(uuid.uuid4()) for _ in docs]
+
+# Store full documents
+docstore = {doc_id: doc for doc_id, doc in zip(doc_ids, docs)}
+
+# Create summary documents with doc_ids
+summary_docs = [
+    Document(page_content=summary, metadata={"doc_id": doc_ids[i]})
+    for i, summary in enumerate(summaries)
+]
+
+# Add summaries to vectorstore
+vectorstore.add_documents(summary_docs)
+```
+
+#### Benefits
+
+- **Reduced Storage**: Store compact summaries instead of full document chunks
+- **Cost Efficiency**: Lower embedding costs (fewer tokens to embed)
+- **Faster Search**: Searching over summaries is more efficient
+- **Better Context**: Retrieve full documents when needed for comprehensive answers
+- **Scalability**: More cost-effective for large document collections
+- **Quality Preservation**: Full documents provide complete context for generation
+
+#### Use Cases
+
+- **Long Documents**: When documents are very long and embedding full chunks is expensive
+- **Large Collections**: When you have many documents and want to reduce storage costs
+- **Summary-First Approach**: When summaries are sufficient for retrieval but full content needed for answers
+- **Cost Optimization**: Balance between storage costs and retrieval quality
+- **Hierarchical Indexing**: When you want to maintain multiple representations of the same content
+
+#### Usage
+
+1. Set up your `.env` file with API keys:
+   ```
+   OPENAI_API_KEY=your_key_here
+   LANGCHAIN_API_KEY=your_key_here (optional, for tracing)
+   ```
+
+2. Run the notebook cells in order:
+   - Environment setup
+   - Load documents from sources
+   - Generate summaries using LLM
+   - Create custom MultiVectorRetriever
+   - Index summaries and store full documents
+   - Query and retrieve
+
+3. Query the system:
+   ```python
+   query = "Memory in agents"
+   retrieved_docs = retriever.invoke(query)
+   # Returns full documents, not summaries
+   ```
+
+#### Example
+
+**Original Document**: Long blog post about LLM agents (5000+ words)
+
+**Summary Created**: "This document discusses LLM-powered autonomous agents, covering planning, memory, and tool use. It provides examples like AutoGPT and discusses challenges..."
+
+**Retrieval Process**:
+1. Query: "How do agents use memory?"
+2. Search finds matching summary in vector store
+3. Extract doc_id from summary metadata
+4. Retrieve full 5000-word document from docstore
+5. Use full document to generate comprehensive answer
+
+#### Requirements
+
+- OpenAI API key
+- Python packages (see main `requirements.txt`)
+- Documents to index
+
+#### Key Dependencies
+
+- `langchain`
+- `langchain-openai`
+- `langchain-community`
+- `langchain-core`
+- `chromadb`
+- `pydantic`
+
+---
+
 ## RAG with Multi-Query Fusion (RAG-Fusion + RRF)
 
 **File:** `RAG-Fusion.ipynb`

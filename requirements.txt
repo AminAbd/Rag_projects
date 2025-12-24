@@ -12,4 +12,6 @@ notebook>=7.0.0
 typing-extensions>=4.0.0
 pydantic>=2.0.0
 scikit-learn>=1.0.0
+youtube-transcript-api>=1.2.0
+pytube>=15.0.0
 
