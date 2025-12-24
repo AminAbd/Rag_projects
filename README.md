@@ -205,6 +205,158 @@ Each query retrieves potentially different documents, which are then combined fo
 - `chromadb`
 
 ---
+### RAG with Routing
+
+**File:** `Rag_Routing.ipynb`
+
+An advanced RAG implementation that demonstrates **intelligent query routing** to direct questions to the most appropriate data source, prompt template, or expert system. This notebook showcases two routing approaches: **Logical Routing** (using structured LLM classification) and **Semantic Routing** (using embedding similarity).
+
+#### Overview
+
+Routing is essential when you have multiple data sources, specialized prompts, or different expert systems. Instead of treating all queries the same way, routing intelligently directs each question to the most relevant handler. This implementation demonstrates:
+
+1. **Logical Routing**: Uses structured LLM output to classify and route queries to different data sources
+2. **Semantic Routing**: Uses embedding similarity to route queries to the most semantically similar prompt template or expert
+
+#### How It Works
+
+**Logical Routing:**
+- Uses structured LLM output (Pydantic models) to classify queries
+- Routes based on explicit classification (e.g., "python_docs", "js_docs", "golang_docs")
+- Deterministic routing based on LLM's classification decision
+
+**Semantic Routing:**
+- Embeds both the query and available prompt templates/expert systems
+- Computes cosine similarity between query embedding and template embeddings
+- Routes to the template/expert with highest similarity
+- More flexible, can handle nuanced semantic matching
+
+#### Workflow
+
+**Logical Routing:**
+```
+User Question
+    ↓
+Structured LLM Classification
+    ↓
+Route to Appropriate Data Source
+    ↓
+Execute Query on Selected Source
+```
+
+**Semantic Routing:**
+```
+User Question
+    ↓
+Embed Query
+    ↓
+Compute Similarity with Prompt Templates
+    ↓
+Route to Most Similar Template/Expert
+    ↓
+Generate Answer with Selected Prompt
+```
+
+#### Key Components
+
+1. **Structured Router (Logical)**: Uses `with_structured_output()` to get structured classification
+2. **Pydantic Model**: Defines routing schema with valid options
+3. **Embedding Router (Semantic)**: Uses OpenAI embeddings and cosine similarity
+4. **Route Selection**: Chooses the best route based on classification or similarity
+5. **Chain Composition**: Seamlessly integrates routing into LangChain pipelines
+
+#### Code Structure
+
+**Logical Routing:**
+```python
+from pydantic import BaseModel, Field
+
+class RouteQuery(BaseModel):
+    datasource: Literal["python_docs", "js_docs", "golang_docs"]
+
+structured_llm = llm.with_structured_output(RouteQuery)
+router = prompt | structured_llm
+```
+
+**Semantic Routing:**
+```python
+from sklearn.metrics.pairwise import cosine_similarity
+
+def prompt_router(input):
+    query_embedding = embeddings.embed_query(input["query"])
+    similarity = cosine_similarity([query_embedding], prompt_embeddings)[0]
+    most_similar = prompt_templates[similarity.argmax()]
+    return PromptTemplate.from_template(most_similar)
+```
+
+#### Benefits
+
+- **Specialized Handling**: Each route can have optimized prompts, data sources, or expert systems
+- **Efficient Resource Usage**: Only uses relevant resources for each query type
+- **Better Accuracy**: Specialized handlers often produce better results than generic approaches
+- **Scalability**: Easy to add new routes as your system grows
+- **Flexible**: Can combine logical and semantic routing for complex scenarios
+
+#### Use Cases
+
+- **Multi-domain RAG**: Route questions to domain-specific document collections
+- **Expert Systems**: Route to specialized prompts (e.g., physics professor vs. math professor)
+- **Multi-lingual Systems**: Route to language-specific handlers
+- **Tool Selection**: Route to appropriate tools or APIs based on query intent
+- **A/B Testing**: Route to different prompt versions or models
+
+#### Usage
+
+1. Set up your `.env` file with API keys:
+   ```
+   OPENAI_API_KEY=your_key_here
+   LANGCHAIN_API_KEY=your_key_here (optional, for tracing)
+   ```
+
+2. Run the notebook cells in order:
+   - Environment setup
+   - Logical routing implementation
+   - Semantic routing implementation
+   - Test routing with different queries
+
+3. Test routing:
+   ```python
+   # Logical routing
+   result = router.invoke({"question": "Python code question"})
+   print(result.datasource)
+   
+   # Semantic routing
+   answer = chain.invoke("What's a black hole")
+   ```
+
+#### Example
+
+**Logical Routing Example:**
+- Question: "Why doesn't this Python code work: ..."
+- Route: Classified as "python_docs"
+- Action: Routes to Python documentation data source
+
+**Semantic Routing Example:**
+- Question: "What's a black hole?"
+- Embeddings: Query embedding compared with physics and math template embeddings
+- Route: Highest similarity with physics template
+- Action: Uses physics professor prompt template
+
+#### Requirements
+
+- OpenAI API key
+- Python packages (see main `requirements.txt`)
+- `scikit-learn` for cosine similarity (included in requirements.txt)
+
+#### Key Dependencies
+
+- `langchain`
+- `langchain-openai`
+- `pydantic`
+- `scikit-learn`
+
+---
+
 ## RAG with Multi-Query Fusion (RAG-Fusion + RRF)
 
 **File:** `RAG-Fusion.ipynb`
