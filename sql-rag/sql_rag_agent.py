@@ -1,5 +1,7 @@
 import re
 import time
+import os
+import getpass
 from typing import Any, List, Tuple
 
 from dotenv import load_dotenv
@@ -29,6 +31,11 @@ ROLE_POLICY = {
 ########################################
 
 load_dotenv()
+
+# Password configuration - can be set via environment variable or hardcoded
+# For production, use environment variable: export SQL_RAG_PASSWORD=your_password
+SQL_RAG_PASSWORD = os.getenv("SQL_RAG_PASSWORD", "admin123")  # Default password, change in production
+MAX_LOGIN_ATTEMPTS = 3
 
 db = SQLDatabase.from_uri("sqlite:///sql-rag/db/Chinook.db?mode=ro")
 
@@ -230,7 +237,33 @@ def run_question(question: str, role: str):
             log_run(log_data)
             return fixed, None, str(e2)
 
+def authenticate():
+    """Authenticate user with password before allowing access."""
+    print("=" * 60)
+    print("SQL-RAG Agent - Authentication Required")
+    print("=" * 60)
+    
+    for attempt in range(MAX_LOGIN_ATTEMPTS):
+        password = getpass.getpass(f"Enter password (attempt {attempt + 1}/{MAX_LOGIN_ATTEMPTS}): ")
+        if password == SQL_RAG_PASSWORD:
+            print("\n✓ Authentication successful!\n")
+            return True
+        else:
+            remaining = MAX_LOGIN_ATTEMPTS - (attempt + 1)
+            if remaining > 0:
+                print(f"✗ Incorrect password. {remaining} attempt(s) remaining.\n")
+            else:
+                print("✗ Maximum login attempts exceeded. Access denied.")
+                return False
+    
+    return False
+
 def main():
+    # Require password authentication before proceeding
+    if not authenticate():
+        print("\nAccess denied. Exiting...")
+        return
+    
     print("SQL-RAG CLI ready. Type a question. Type 'exit' to quit.\n")
     role = input("Role (support_agent/admin) [support_agent]: ").strip() or "support_agent"
     if role not in ROLE_POLICY:

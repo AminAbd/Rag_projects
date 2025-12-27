@@ -265,10 +265,38 @@ def is_safe_sql(sql: str) -> bool:
 
 The system implements a **defense-in-depth** strategy** with multiple security layers:
 
-1. **Database-Level**: Read-only mode (`mode=ro`)
-2. **SQL-Level**: Keyword filtering and whitelisting
-3. **Role-Level**: Policy-based access control
-4. **Execution-Level**: Error handling and validation
+1. **Access-Level**: Password authentication before system access
+2. **Database-Level**: Read-only mode (`mode=ro`)
+3. **SQL-Level**: Keyword filtering and whitelisting
+4. **Role-Level**: Policy-based access control
+5. **Execution-Level**: Error handling and validation
+
+### Password Authentication
+
+**Theory**: The first line of defense is preventing unauthorized access to the system entirely. Password authentication ensures only authorized users can interact with the SQL-RAG agent.
+
+**Implementation**:
+```python
+def authenticate():
+    """Authenticate user with password before allowing access."""
+    for attempt in range(MAX_LOGIN_ATTEMPTS):
+        password = getpass.getpass(f"Enter password (attempt {attempt + 1}/{MAX_LOGIN_ATTEMPTS}): ")
+        if password == SQL_RAG_PASSWORD:
+            return True
+    return False
+```
+
+**Security Features**:
+- **Hidden Input**: Uses `getpass` to prevent password visibility
+- **Attempt Limiting**: Maximum 3 login attempts to prevent brute force
+- **Environment Variable Support**: Password can be set via `SQL_RAG_PASSWORD` env var
+- **Default Password**: Development default (`admin123`) - **must be changed in production**
+
+**Best Practices**:
+- Use strong passwords in production
+- Set password via environment variable (never commit passwords to code)
+- Rotate passwords regularly
+- Consider implementing additional authentication (2FA, API keys) for production deployments
 
 ### SQL Injection Prevention
 
@@ -556,9 +584,38 @@ cd sql-rag
 python sql_rag_agent.py
 ```
 
+### Password Authentication
+
+The agent requires password authentication before access. You have two options to set the password:
+
+**Option 1: Environment Variable (Recommended for Production)**
+```bash
+# Set password via environment variable
+export SQL_RAG_PASSWORD=your_secure_password
+
+# Then run the agent
+python sql_rag_agent.py
+```
+
+**Option 2: Default Password (Development)**
+- Default password: `admin123`
+- **⚠️ Warning**: Change this in production by setting the `SQL_RAG_PASSWORD` environment variable or modifying the code
+
+**Security Features:**
+- Password input is hidden (using `getpass`)
+- Maximum 3 login attempts
+- Access denied after exceeding attempts
+
 ### Interactive Session
 
 ```
+============================================================
+SQL-RAG Agent - Authentication Required
+============================================================
+Enter password (attempt 1/3): ********
+
+✓ Authentication successful!
+
 SQL-RAG CLI ready. Type a question. Type 'exit' to quit.
 
 Role (support_agent/admin) [support_agent]: support_agent
