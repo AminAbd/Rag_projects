@@ -604,10 +604,62 @@ The SQL-RAG agent uses **role-based password authentication**:
 
 ### Running the Agent
 
+You have three options to use the SQL-RAG agent:
+
+#### Option 1: Command Line Interface (CLI)
+
 ```bash
 cd sql-rag
 python sql_rag_agent.py
 ```
+
+#### Option 2: Web Interface (Streamlit)
+
+```bash
+cd sql-rag
+streamlit run streamlit_app.py
+```
+
+The Streamlit interface provides:
+- **User-friendly web UI** - No command line needed
+- **Visual results display** - Formatted SQL, tables, and answers
+- **Example questions** - Click to try pre-made queries
+- **Real-time feedback** - See execution time and status
+- **Same security** - Role-based password authentication
+
+**Note**: Make sure Streamlit is installed: `pip install streamlit`
+
+#### Option 3: REST API (FastAPI)
+
+```bash
+cd sql-rag
+uvicorn fastapi_app:app --reload
+```
+
+Or using Python:
+```bash
+cd sql-rag
+python fastapi_app.py
+```
+
+The FastAPI interface provides:
+- **REST API** - Integrate with any frontend or application
+- **Automatic API documentation** - Available at `http://localhost:8000/docs`
+- **HTTP Basic Authentication** - Role-based password authentication
+- **JSON responses** - Easy to consume from any client
+- **CORS enabled** - Can be used from web frontends
+
+**API Endpoints:**
+- `GET /` - API information
+- `GET /health` - Health check
+- `POST /auth` - Authenticate and get role
+- `POST /query` - Execute natural language query
+- `GET /roles` - Get available roles and permissions
+- `GET /examples` - Get example questions
+
+**API Documentation**: Once running, visit `http://localhost:8000/docs` for interactive API documentation.
+
+**Note**: Make sure FastAPI and Uvicorn are installed: `pip install fastapi uvicorn`
 
 ### Password Authentication (Role-Based)
 

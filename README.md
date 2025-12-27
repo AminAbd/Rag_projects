@@ -109,13 +109,29 @@ A production-ready natural language to SQL agent with:
 - **Role-Based Access Control**: Enforces security policies based on user roles
 - **Self-Correction**: Automatically fixes SQL errors using LLM feedback
 - **Comprehensive Logging**: Tracks all queries, errors, and performance metrics
-- **Interactive CLI**: User-friendly command-line interface
+- **Multiple Interfaces**: CLI, Streamlit web UI, and FastAPI REST API
 
 **Quick Start:**
+
+**Option 1: Command Line Interface**
 ```bash
 cd sql-rag
 python sql_rag_agent.py
 ```
+
+**Option 2: Streamlit Web Interface**
+```bash
+cd sql-rag
+streamlit run streamlit_app.py
+```
+Access at: `http://localhost:8501`
+
+**Option 3: FastAPI REST API**
+```bash
+cd sql-rag
+python -m uvicorn fastapi_app:app --reload
+```
+Access at: `http://localhost:8000/docs` (interactive API documentation)
 
 **Default Passwords:**
 - **Admin**: `admin123` (full access)
@@ -156,6 +172,8 @@ python sql_rag_agent.py
 - **ChromaDB**: Vector database for embeddings
 - **SQLite**: Relational database (for SQL-RAG)
 - **Tavily**: Web search API (for CRAG)
+- **Streamlit**: Web interface framework (for SQL-RAG web UI)
+- **FastAPI**: Modern REST API framework (for SQL-RAG API)
 
 ## 📝 Adding New Projects
 

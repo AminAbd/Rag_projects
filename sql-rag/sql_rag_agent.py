@@ -43,7 +43,10 @@ ROLE_PASSWORDS = {
 }
 MAX_LOGIN_ATTEMPTS = 3
 
-db = SQLDatabase.from_uri("sqlite:///sql-rag/db/Chinook.db?mode=ro")
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SCRIPT_DIR, "db", "Chinook.db")
+db = SQLDatabase.from_uri(f"sqlite:///{DB_PATH}?mode=ro")
 
 llm_sql = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 llm_answer = ChatOpenAI(model="gpt-4o-mini", temperature=0)
