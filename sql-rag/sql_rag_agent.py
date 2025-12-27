@@ -32,9 +32,15 @@ ROLE_POLICY = {
 
 load_dotenv()
 
-# Password configuration - can be set via environment variable or hardcoded
-# For production, use environment variable: export SQL_RAG_PASSWORD=your_password
-SQL_RAG_PASSWORD = os.getenv("SQL_RAG_PASSWORD", "admin123")  # Default password, change in production
+# Role-based password configuration
+# Passwords can be set via environment variables or use defaults below
+# For production, use environment variables:
+# export SQL_RAG_ADMIN_PASSWORD=your_admin_password
+# export SQL_RAG_SUPPORT_PASSWORD=your_support_password
+ROLE_PASSWORDS = {
+    "admin": os.getenv("SQL_RAG_ADMIN_PASSWORD", "admin123"),
+    "support_agent": os.getenv("SQL_RAG_SUPPORT_PASSWORD", "support123")
+}
 MAX_LOGIN_ATTEMPTS = 3
 
 db = SQLDatabase.from_uri("sqlite:///sql-rag/db/Chinook.db?mode=ro")
@@ -238,38 +244,40 @@ def run_question(question: str, role: str):
             return fixed, None, str(e2)
 
 def authenticate():
-    """Authenticate user with password before allowing access."""
+    """Authenticate user with password and determine role based on password."""
     print("=" * 60)
     print("SQL-RAG Agent - Authentication Required")
     print("=" * 60)
+    print("Enter your role password (password determines your access level)\n")
     
     for attempt in range(MAX_LOGIN_ATTEMPTS):
         password = getpass.getpass(f"Enter password (attempt {attempt + 1}/{MAX_LOGIN_ATTEMPTS}): ")
-        if password == SQL_RAG_PASSWORD:
-            print("\n✓ Authentication successful!\n")
-            return True
+        
+        # Check which role this password belongs to
+        for role, role_password in ROLE_PASSWORDS.items():
+            if password == role_password:
+                role_display = "Admin" if role == "admin" else "Support Agent"
+                print(f"\n✓ Authentication successful! Role: {role_display}\n")
+                return role
+        
+        # Password didn't match any role
+        remaining = MAX_LOGIN_ATTEMPTS - (attempt + 1)
+        if remaining > 0:
+            print(f"✗ Incorrect password. {remaining} attempt(s) remaining.\n")
         else:
-            remaining = MAX_LOGIN_ATTEMPTS - (attempt + 1)
-            if remaining > 0:
-                print(f"✗ Incorrect password. {remaining} attempt(s) remaining.\n")
-            else:
-                print("✗ Maximum login attempts exceeded. Access denied.")
-                return False
+            print("✗ Maximum login attempts exceeded. Access denied.")
+            return None
     
-    return False
+    return None
 
 def main():
-    # Require password authentication before proceeding
-    if not authenticate():
+    # Require password authentication - password determines role
+    role = authenticate()
+    if not role:
         print("\nAccess denied. Exiting...")
         return
     
     print("SQL-RAG CLI ready. Type a question. Type 'exit' to quit.\n")
-    role = input("Role (support_agent/admin) [support_agent]: ").strip() or "support_agent"
-    if role not in ROLE_POLICY:
-        print("Unknown role. Using support_agent.")
-        role = "support_agent"
-    print(f"\nRole set to: {role}\n")
 
     while True:
         q = input("You> ").strip()

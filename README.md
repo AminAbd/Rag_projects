@@ -105,6 +105,7 @@ A collection of advanced RAG strategies and implementations. Each notebook demon
 A production-ready natural language to SQL agent with:
 
 - **Text-to-SQL Conversion**: Converts natural language questions into SQL queries
+- **Role-Based Password Authentication**: Password determines access level (admin or support agent)
 - **Role-Based Access Control**: Enforces security policies based on user roles
 - **Self-Correction**: Automatically fixes SQL errors using LLM feedback
 - **Comprehensive Logging**: Tracks all queries, errors, and performance metrics
@@ -115,6 +116,12 @@ A production-ready natural language to SQL agent with:
 cd sql-rag
 python sql_rag_agent.py
 ```
+
+**Default Passwords:**
+- **Admin**: `admin123` (full access)
+- **Support Agent**: `support123` (restricted access)
+
+**Note**: Change default passwords in production using environment variables (`SQL_RAG_ADMIN_PASSWORD` and `SQL_RAG_SUPPORT_PASSWORD`).
 
 📚 **See [sql-rag/README.md](sql-rag/README.md) for detailed documentation.**
 

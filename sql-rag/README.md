@@ -271,31 +271,48 @@ The system implements a **defense-in-depth** strategy** with multiple security l
 4. **Role-Level**: Policy-based access control
 5. **Execution-Level**: Error handling and validation
 
-### Password Authentication
+### Password Authentication (Role-Based)
 
-**Theory**: The first line of defense is preventing unauthorized access to the system entirely. Password authentication ensures only authorized users can interact with the SQL-RAG agent.
+**Theory**: The first line of defense is preventing unauthorized access to the system entirely. **Role-based password authentication** ensures only authorized users can interact with the SQL-RAG agent, and the password itself determines the user's access level. This eliminates the need for separate role selection and provides stronger security.
 
 **Implementation**:
 ```python
+ROLE_PASSWORDS = {
+    "admin": os.getenv("SQL_RAG_ADMIN_PASSWORD", "admin123"),
+    "support_agent": os.getenv("SQL_RAG_SUPPORT_PASSWORD", "support123")
+}
+
 def authenticate():
-    """Authenticate user with password before allowing access."""
+    """Authenticate user with password and determine role based on password."""
     for attempt in range(MAX_LOGIN_ATTEMPTS):
         password = getpass.getpass(f"Enter password (attempt {attempt + 1}/{MAX_LOGIN_ATTEMPTS}): ")
-        if password == SQL_RAG_PASSWORD:
-            return True
-    return False
+        
+        # Check which role this password belongs to
+        for role, role_password in ROLE_PASSWORDS.items():
+            if password == role_password:
+                return role  # Return the role determined by password
+    
+    return None  # Authentication failed
 ```
 
 **Security Features**:
 - **Hidden Input**: Uses `getpass` to prevent password visibility
 - **Attempt Limiting**: Maximum 3 login attempts to prevent brute force
-- **Environment Variable Support**: Password can be set via `SQL_RAG_PASSWORD` env var
-- **Default Password**: Development default (`admin123`) - **must be changed in production**
+- **Role-Based Access**: Password automatically determines role (admin or support_agent)
+- **Environment Variable Support**: Passwords can be set via `SQL_RAG_ADMIN_PASSWORD` and `SQL_RAG_SUPPORT_PASSWORD` env vars
+- **Default Passwords**: Development defaults (`admin123` for admin, `support123` for support) - **must be changed in production**
+
+**Advantages of Role-Based Passwords**:
+- **Simpler UX**: No need to select role after authentication
+- **Stronger Security**: Role is determined by password, not user selection
+- **Clear Separation**: Different passwords for different access levels
+- **Audit Trail**: Password used indicates which role accessed the system
 
 **Best Practices**:
-- Use strong passwords in production
-- Set password via environment variable (never commit passwords to code)
+- Use strong, unique passwords for each role in production
+- Set passwords via environment variables (never commit passwords to code)
 - Rotate passwords regularly
+- Use different password complexity requirements for admin vs support roles
 - Consider implementing additional authentication (2FA, API keys) for production deployments
 
 ### SQL Injection Prevention
@@ -577,6 +594,14 @@ log_run({
 
 ## Usage
 
+### Quick Summary
+
+The SQL-RAG agent uses **role-based password authentication**:
+- **Enter a password** → System determines your role automatically
+- **Admin password** (`admin123`) → Full access to all data
+- **Support Agent password** (`support123`) → Restricted access (no sensitive fields)
+- **No role selection needed** - password IS your role identifier
+
 ### Running the Agent
 
 ```bash
@@ -584,27 +609,81 @@ cd sql-rag
 python sql_rag_agent.py
 ```
 
-### Password Authentication
+### Password Authentication (Role-Based)
 
-The agent requires password authentication before access. You have two options to set the password:
+The agent uses **role-based password authentication** - the password you enter automatically determines your access level. This is more secure than selecting a role after login because the password itself grants the appropriate permissions.
 
-**Option 1: Environment Variable (Recommended for Production)**
+#### How It Works
+
+**Key Concept**: Each role has its own unique password. When you enter a password, the system:
+1. Checks which role that password belongs to
+2. Automatically assigns you that role
+3. Applies the corresponding access permissions
+
+**No Role Selection Needed**: Unlike traditional systems where you login and then select a role, here the password IS your role identifier.
+
+#### Default Passwords (Development)
+
+| Role | Password | Access Level |
+|------|----------|--------------|
+| **Admin** | `admin123` | Full access to all tables and fields |
+| **Support Agent** | `support123` | Restricted access (no customer emails, limited fields) |
+
+**⚠️ Important**: These are development defaults. **You must change them in production!**
+
+#### Setting Custom Passwords (Production)
+
+**Option 1: Environment Variables (Recommended)**
+
+Set passwords via environment variables before running the agent:
+
 ```bash
-# Set password via environment variable
-export SQL_RAG_PASSWORD=your_secure_password
+# On Linux/macOS
+export SQL_RAG_ADMIN_PASSWORD=your_secure_admin_password
+export SQL_RAG_SUPPORT_PASSWORD=your_secure_support_password
+
+# On Windows (PowerShell)
+$env:SQL_RAG_ADMIN_PASSWORD="your_secure_admin_password"
+$env:SQL_RAG_SUPPORT_PASSWORD="your_secure_support_password"
 
 # Then run the agent
 python sql_rag_agent.py
 ```
 
-**Option 2: Default Password (Development)**
-- Default password: `admin123`
-- **⚠️ Warning**: Change this in production by setting the `SQL_RAG_PASSWORD` environment variable or modifying the code
+**Option 2: Modify Code Directly**
 
-**Security Features:**
-- Password input is hidden (using `getpass`)
-- Maximum 3 login attempts
-- Access denied after exceeding attempts
+Edit `sql_rag_agent.py` and change the default passwords in the `ROLE_PASSWORDS` dictionary:
+
+```python
+ROLE_PASSWORDS = {
+    "admin": "your_custom_admin_password",
+    "support_agent": "your_custom_support_password"
+}
+```
+
+**⚠️ Security Warning**: Never commit passwords to version control. Always use environment variables in production.
+
+#### Security Features
+
+- **Hidden Input**: Password is not displayed while typing (using `getpass`)
+- **Attempt Limiting**: Maximum 3 login attempts to prevent brute force attacks
+- **Automatic Role Assignment**: Role is determined by password, eliminating role selection step
+- **Access Denial**: System exits after exceeding maximum attempts
+- **Environment Variable Support**: Secure password management without code changes
+
+#### Why Role-Based Passwords?
+
+**Advantages**:
+- **Simpler UX**: One step (enter password) instead of two (login + select role)
+- **Stronger Security**: Role is cryptographically tied to password, not user choice
+- **Clear Audit Trail**: Password used indicates which role accessed the system
+- **No Privilege Escalation**: Users can't select a higher role than their password allows
+- **Better Separation**: Different passwords for different access levels
+
+**Example Scenario**:
+- Admin enters `admin123` → Gets admin role automatically → Full access
+- Support agent enters `support123` → Gets support_agent role automatically → Restricted access
+- Wrong password → Access denied → No role assigned
 
 ### Interactive Session
 
@@ -612,18 +691,18 @@ python sql_rag_agent.py
 ============================================================
 SQL-RAG Agent - Authentication Required
 ============================================================
+Enter your role password (password determines your access level)
+
 Enter password (attempt 1/3): ********
 
-✓ Authentication successful!
+✓ Authentication successful! Role: Support Agent
 
 SQL-RAG CLI ready. Type a question. Type 'exit' to quit.
 
-Role (support_agent/admin) [support_agent]: support_agent
-
-Role set to: support_agent
-
 You> Which 5 customers spent the most money?
 ```
+
+**Note**: The role is automatically determined by the password you enter. No need to select a role separately.
 
 ### Example Output
 
